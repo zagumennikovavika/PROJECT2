@@ -16,16 +16,22 @@ void Generate(int* arr, int n, int* curPerm, int depth,
             Generate(arr, n, curPerm, depth + 1, used, callback);
             used[i] = 0;
         }
-    }
+    } 
 }
 
 /* The function of organizing the generation 
 of all permutations using backtracking */
 void PermutationsBacktrack(int arr[], int n, 
                            void (*callback)(int perm[], int n)) {
-    if (arr == NULL || n <= 0) {
+    if (arr == NULL || n < 0) {
         fprintf(stderr, "Error: incorrect input parameters\n");
         return;
+    }
+    if (n == 0) {
+        if (callback != NULL) {
+            callback(NULL, 0);
+        }
+        return; 
     }
     int* curPerm = (int*)malloc(n * sizeof(int));
     if (curPerm == NULL) {
@@ -64,8 +70,14 @@ void GenerateSwap(int arr[], int n, int depth,
 /* A function that organizes the recursive generation of permutations */
 void PermutationsRecursiveSwap(int arr[], int n,
                                void (*callback)(int perm[], int n)) {
-    if (arr == NULL || n <= 0) {
+    if (arr == NULL || n < 0) {
         fprintf(stderr, "Error: incorrect input parameters\n");
+        return;
+    }
+    if (n == 0) {
+        if (callback != NULL) {
+            callback(NULL, 0);
+        }
         return;
     }
     GenerateSwap(arr, n, 0, callback);
@@ -110,7 +122,13 @@ void GeneratePermutations(int arr[], int start, int end,
 of all permutations in lexicographic order */
 void PermRecursiveLexicographic(int arr[], int n, 
                                 void (*callback)(int perm[], int n)) {
-    if (arr == NULL || n <= 0) return;
+    if (arr == NULL || n < 0) return;
+    if (n == 0) {
+        if (callback != NULL) {
+            callback(NULL, 0);
+        }
+        return;
+    }
     int* sortArr = malloc(n * sizeof(int));
     if (!sortArr) return;
     memcpy(sortArr, arr, n * sizeof(int));
@@ -120,26 +138,49 @@ void PermRecursiveLexicographic(int arr[], int n,
 }
 
 
-
-
 /* 1.4 */
 /* The main function of checking the validity of partial solutions */
 bool CheckConstraint(int partial[], int k, int nextElem, void* data) {
-    (void)partial;  
     ConstraintData* ptr = (ConstraintData*)data;
+    if (ptr == NULL) return true;
     for (size_t i = 0; i < ptr->numPosConstraints; ++i) {
-        if (ptr->posConstraints[i].element == nextElem && 
-            ptr->posConstraints[i].position != k) {
+        PosConstraint* pc = &ptr->posConstraints[i];
+        if (pc->element == nextElem && pc->position == k) {
             return false;
         }
     }
+
+    for (size_t i = 0; i < ptr->numRelConstraints; ++i) {
+        RelConstraint* rc = &ptr->relConstraints[i];
+        if (nextElem == rc->elemB) {
+            bool found = false;
+            for (int j = 0; j < k; j++) {  
+                if (partial[j] == rc->elemA) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                return false;
+            }
+        }
+        if (nextElem == rc->elemA) {
+            for (int j = 0; j < k; j++) {  
+                if (partial[j] == rc->elemB) {
+                    return false;
+                }
+            }
+        }
+    }
+    
     return true;
 }
 
 
 /* The basic recursive function of generating permutations with constraints */
 void GeneratePerm(int arr[], int n, int depth, int used[], int curPerm[], 
-                  bool (*constraint)(int partial[], int k, int nextElem, void* data), 
+                  bool (*constraint)
+                  (int partial[], int k, int nextElem, void* data), 
                   void* constraintData, 
                   void (*callback)(int perm[], int n)) {
     if (depth >= n) {
@@ -150,12 +191,12 @@ void GeneratePerm(int arr[], int n, int depth, int used[], int curPerm[],
         if (used[i]) continue;
         curPerm[depth] = arr[i];
         
-        bool constraint_passed = true;
+        bool constraintPassed = true;
         if (constraint != NULL) {
-            constraint_passed = constraint(curPerm, depth, arr[i], constraintData);
+            constraintPassed = constraint(curPerm, depth, arr[i], constraintData);
         }
         
-        if (constraint_passed) {
+        if (constraintPassed) {
             used[i] = 1;
             GeneratePerm(arr, n, depth + 1, used, curPerm, constraint, 
             constraintData, callback);
@@ -165,13 +206,20 @@ void GeneratePerm(int arr[], int n, int depth, int used[], int curPerm[],
 }
 
 
-/* An external interface function for generating permutations with constraints */
+/* An external interface function for generating 
+permutations with constraints */
 void PermutationsWithConstraints(int arr[], int n, 
                                  bool (*constraint)(int partial[], int k, 
                                  int nextElem, void* data), 
                                  void* constraintData, 
                                  void (*callback)(int perm[], int n)) {
-    if (arr == NULL || n <= 0) return;
+    if (arr == NULL || n < 0) return;
+    if (n == 0) {
+        if (callback != NULL) {
+            callback(NULL, 0);
+        }
+        return;
+    }
     int* used = calloc(n, sizeof(int));
     int* curPerm = malloc(n * sizeof(int));
     if (!used || !curPerm) {
@@ -183,9 +231,6 @@ void PermutationsWithConstraints(int arr[], int n,
     free(used);
     free(curPerm);
 }
-
-
-
 
 
 /* 1.5 */
@@ -231,18 +276,33 @@ void GenerateUniquePermutations(int arr[], int n, int start, int result[],
         return;
     }
     for (int i = start; i < n; ++i) {
+        bool duplicate = false;
+        for (int j = start; j < i; ++j) {
+            if (arr[j] == arr[i]) {
+                duplicate = true;
+                break;
+            }
+        }
+        if (duplicate) continue;
         Swap(&result[start], &arr[i]);
         GenerateUniquePermutations(arr, n, start + 1, result, callback);
         Swap(&result[start], &arr[i]);
     }
-}
+} 
 
 /* The main method of generating permutations */
 void MultisetPermutations(int arr[], int n, void (*callback)(int perm[], int n)) {
+    if (arr == NULL || n <= 0) return;  
+    if (n == 0) {
+        if (callback != NULL) {
+            callback(NULL, 0);
+        }
+        return;
+    }
     QuickSort(arr, 0, n - 1); 
-    int* result = malloc(n * sizeof(int)); 
+    int* result = (int*)malloc(n * sizeof(int));
     if (!result) return;
     memcpy(result, arr, n * sizeof(int));
     GenerateUniquePermutations(arr, n, 0, result, callback);
     free(result);
-}
+} 
